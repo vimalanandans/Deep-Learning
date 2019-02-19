@@ -1,5 +1,6 @@
 import argparse
 import keras
+import ssl
 from keras import backend as K
 from keras.layers.core import Dense, Activation
 from keras.optimizers import Adam
@@ -24,6 +25,14 @@ from google_images_download import google_images_download
 mobile = None
 model_path = 'resources/mobinet_custom.h5'
 
+def disable_ssl_certificate_check():
+    """
+    Needed for donwloading pre-trained models from internet
+    :return:
+    """
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+
 def prepare_image(file):
     img_path = ''
     img = image.load_img(img_path + file, target_size=(224, 224))
@@ -32,33 +41,46 @@ def prepare_image(file):
     return keras.applications.mobilenet.preprocess_input(img_array_expanded_dims)
 
 def load_mobilenet():    
-    
+    global mobile
     exists = os.path.isfile(model_path)
-
-    if exists :
+    if exists :        
         mobile = load_model(model_path)
     else :   
         print ("loading pre-trained from web")
+         # Disable checking for https certificate. Otherwise pre-trained model download will fail.
+        disable_ssl_certificate_check()
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
         base_model = keras.applications.mobilenet.MobileNet()
         base_model = MobileNet(weights='imagenet',include_top=False) 
-        mobile = transfer_learning(base_model)
-
-    mobile.summary()
+        mobile = custom_layers(base_model) 
 
     return mobile
 
+def load_image(img_path, show=False):
+
+    img = image.load_img(img_path, target_size=(150, 150))
+    img_tensor = image.img_to_array(img)                    # (height, width, channels)
+    img_tensor = np.expand_dims(img_tensor, axis=0)         # (1, height, width, channels), add a dimension because the model expects this shape: (batch_size, height, width, channels)
+    img_tensor /= 255.                                      # imshow expects values in the range [0, 1]
+
+    if show:
+        plt.imshow(img_tensor[0])                           
+        plt.axis('off')
+        plt.show()
+
+    return img_tensor
     
 def download_images():
     response = google_images_download.googleimagesdownload()
-    arguments = {"keywords":"blue tit","limit":1,"print_urls":False,"format":"jpg", "size":">400*300"}
+    arguments = {"keywords":"blue tit","limit":100,"print_urls":False,"format":"jpg", "size":">400*300"}
     paths = response.download(arguments)
     print(paths)
-    arguments = {"keywords":"crow","limit":1,"print_urls":False, "format":"jpg", "size":">400*300"}
+    arguments = {"keywords":"crow","limit":100,"print_urls":False, "format":"jpg", "size":">400*300"}
     paths = response.download(arguments)
     print(paths)
     return paths
 
-def transfer_learning(base_model):
+def custom_layers(base_model):
     
 
     x=base_model.output
@@ -79,6 +101,8 @@ def transfer_learning(base_model):
         layer.trainable=True
 
     model.save(model_path)
+
+    mobile.summary()
 
     return model
 
@@ -107,10 +131,26 @@ def train():
 
     model.save(model_path)
 
+def infer_img(model, img_path):
+    
+    new_image = load_image(img_path)
+    pred = model.predict(new_image)
+    print ("#### Inference result ")
+    print (pred)
+    print("img_path {} >> blue_tit : {:.4f} crow : {:.4f}".format( img_path,pred[0][0],pred[0][1]));
+    return
+
 def infer():
+    
+    model = load_mobilenet()
+    infer_img(model, 'crow.jpg')
+
+    infer_img(model, 'blue_tit.jpg')
+    
     return
 
 def test_pretrained():
+    disable_ssl_certificate_check()
     mobile = keras.applications.mobilenet.MobileNet()
     #Image(filename='German_Shepherd.jpg')
     preprocessed_image = prepare_image('German_Shepherd.jpg')
@@ -155,7 +195,7 @@ def main():
         train()
 
     if cfg['phase'] in ('test', 'train_test'):
-        test()
+        infer()
 
     
     
