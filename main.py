@@ -22,7 +22,7 @@ from google_images_download import google_images_download
 
 
 mobile = None
-model_name = 'mobinet_trained.h5'
+model_path = 'resources/mobinet_custom.h5'
 
 def prepare_image(file):
     img_path = ''
@@ -33,10 +33,10 @@ def prepare_image(file):
 
 def load_mobilenet():    
     
-    exists = os.path.isfile(model_name)
+    exists = os.path.isfile(model_path)
 
     if exists :
-        mobile = load_model(model_name)
+        mobile = load_model(model_path)
     else :   
         print ("loading pre-trained from web")
         base_model = keras.applications.mobilenet.MobileNet()
@@ -50,10 +50,10 @@ def load_mobilenet():
     
 def download_images():
     response = google_images_download.googleimagesdownload()
-    arguments = {"keywords":"blue tit","limit":100,"print_urls":False,"format":"jpg", "size":">400*300"}
+    arguments = {"keywords":"blue tit","limit":1,"print_urls":False,"format":"jpg", "size":">400*300"}
     paths = response.download(arguments)
     print(paths)
-    arguments = {"keywords":"crow","limit":100,"print_urls":False, "format":"jpg", "size":">400*300"}
+    arguments = {"keywords":"crow","limit":1,"print_urls":False, "format":"jpg", "size":">400*300"}
     paths = response.download(arguments)
     print(paths)
     return paths
@@ -78,7 +78,7 @@ def transfer_learning(base_model):
     for layer in model.layers[20:]:
         layer.trainable=True
 
-    model.save(model_name)
+    model.save(model_path)
 
     return model
 
@@ -105,7 +105,7 @@ def train():
                     steps_per_epoch=step_size_train,
                     epochs=10)
 
-    model.save(model_name)
+    model.save(model_path)
 
 def infer():
     return
@@ -152,7 +152,7 @@ def main():
         test_pretrained()    
     
     if cfg['phase'] in ('train', 'train_test'):
-        train(model)
+        train()
 
     if cfg['phase'] in ('test', 'train_test'):
         test()

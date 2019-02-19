@@ -10,7 +10,6 @@ Keras-Preprocessing==1.0.9
 Markdown==3.0.1
 numpy==1.16.1
 Pillow==5.4.1
-pkg-resources==0.0.0
 protobuf==3.6.1
 PyYAML==3.13
 scipy==1.2.1
@@ -19,6 +18,5 @@ six==1.12.0
 tensorboard==1.12.2
 tensorflow==1.12.0
 termcolor==1.1.0
-tf==1.0.0
 urllib3==1.24.1
 Werkzeug==0.14.1
