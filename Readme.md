@@ -1,14 +1,16 @@
-## setup virtual environment (once)
+## Setup virtual environment (once)
 virtualenv ./temp/env -p python3
 
-#source the virtual envirotnment (on every begining)
+# Source the virtual envirotnment (on every begining)
 source ./temp/env/bin/activate
 
 # install dependencies from requirements
 pip3 install -r requirement.txt
 
+# Keep the Models under below folders
+./resources/
 
-##commands
+## Commands
 
 # to download the images
 python main.py --phase img_dl

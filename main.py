@@ -13,6 +13,9 @@ from keras.layers import Dense,GlobalAveragePooling2D
 from keras.applications import MobileNet
 from keras.applications.mobilenet import preprocess_input
 from keras.models import load_model
+from keras import backend as K
+from keras.models import Sequential
+import tensorflow as tf
 import os
 
 import numpy as np
@@ -23,7 +26,9 @@ from google_images_download import google_images_download
 
 
 mobile = None
-model_path = 'resources/mobinet_custom.h5'
+model_path = './resources/'
+model_file = model_path + 'mobinet_custom.h5'
+
 
 def disable_ssl_certificate_check():
     """
@@ -42,14 +47,14 @@ def prepare_image(file):
 
 def load_mobilenet():    
     global mobile
-    exists = os.path.isfile(model_path)
+    exists = os.path.isfile(model_file)
     if exists :        
-        mobile = load_model(model_path)
+        mobile = load_model(model_file)
     else :   
         print ("loading pre-trained from web")
          # Disable checking for https certificate. Otherwise pre-trained model download will fail.
         disable_ssl_certificate_check()
-        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        os.makedirs(os.path.dirname(model_file), exist_ok=True)
         base_model = keras.applications.mobilenet.MobileNet()
         base_model = MobileNet(weights='imagenet',include_top=False) 
         mobile = custom_layers(base_model) 
@@ -100,7 +105,7 @@ def custom_layers(base_model):
     for layer in model.layers[20:]:
         layer.trainable=True
 
-    model.save(model_path)
+    model.save(model_file)
 
     mobile.summary()
 
@@ -129,7 +134,7 @@ def train():
                     steps_per_epoch=step_size_train,
                     epochs=10)
 
-    model.save(model_path)
+    model.save(model_file)
 
 def infer_img(model, img_path):
     
@@ -170,9 +175,58 @@ def test_pretrained():
     results = imagenet_utils.decode_predictions(predictions)
     # print(predictions)
 
+
+def convert_tf(prevmodel,export_path,freeze_graph_binary):
+    # open up a Tensorflow session
+    sess = tf.Session()
+    # tell Keras to use the session
+    K.set_session(sess)
+
+    # From this document: https://blog.keras.io/keras-as-a-simplified-interface-to-tensorflow-tutorial.html
+
+
+    # let's convert the model for inference
+    K.set_learning_phase(0)  # all new operations will be in test mode from now on
+    # serialize the model and get its weights, for quick re-building
+    previous_model = load_model(prevmodel)
+    previous_model.summary()
+
+    config = previous_model.get_config()
+    weights = previous_model.get_weights()
+
+    # re-build a model where the learning phase is now hard-coded to 0
+    try:
+        model= Sequential.from_config(config) 
+    except:
+        model= Model.from_config(config) 
+
+    model.set_weights(weights)
+
+    print(model.get_config())
+
+    #   print("Input name:")
+    #   print(model.input.name)
+    print("Output name:")
+    print(model.output.name)
+    output_name=model.output.name.split(':')[0]
+
+    export_version = 1 # version number (integer)
+
+    graph_file=export_path+"_graph.pb"
+    ckpt_file=export_path+".ckpt"
+    # create a saver 
+    saver = tf.train.Saver(sharded=True)
+    tf.train.write_graph(sess.graph_def, '', graph_file, as_text=False)
+    save_path = saver.save(sess, ckpt_file)
+
+    command = freeze_graph_binary +" --input_binary=True"+" --input_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_node_names="+output_name+" --output_graph="+export_path+".pb"
+    print(command)
+    os.system(command)
+    return
+
 def parse_args():
     parser = argparse.ArgumentParser()    
-    parser.add_argument('--phase', type=str, required=True, choices=['train', 'test', 'train_test','pretrained','img_dl'],
+    parser.add_argument('--phase', type=str, required=True, choices=['train', 'test', 'train_test','pretrained','img_dl', 'convert'],
                         help='To train, test or both, pretrained -> run pretrained, img_dl -> download image for training ')                        
     return parser.parse_args()
 
@@ -197,7 +251,8 @@ def main():
     if cfg['phase'] in ('test', 'train_test'):
         infer()
 
-    
+    if cfg['phase'] in ('convert') :
+        convert_tf(model_file, model_path, "python -m tensorflow.python.tools.freeze_graph")
     
 
 if __name__ == '__main__':
