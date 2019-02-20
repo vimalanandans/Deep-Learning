@@ -4,7 +4,7 @@ virtualenv ./temp/env -p python3
 # Source the virtual envirotnment (on every begining)
 source ./temp/env/bin/activate
 
-# install dependencies from requirements
+# Install dependencies from requirements
 pip3 install -r requirement.txt
 
 # Keep the Models under below folders
@@ -12,11 +12,16 @@ pip3 install -r requirement.txt
 
 ## Commands
 
-# to download the images
-python main.py --phase img_dl
-
-# run pretrained mobilenet mode
+# Run pretrained mobilenet mode
 python main.py --phase pretrained
 
-# train the model
+# Run the custom binary classification after copying h5 model files into the ./resources folder
+python main.py --phase test
+
+## To train the Customer binary classification
+# To download the binary image set
+python main.py --phase img_dl
+
+# Train the model. you might need a GPU. and then run the test
 python main.py --phase train
+
